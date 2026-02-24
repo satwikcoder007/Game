@@ -20,9 +20,9 @@ walkRight = [pygame.image.load('assets/R1.png'), pygame.image.load('assets/R2.pn
 walkLeft = [pygame.image.load('assets/L1.png'), pygame.image.load('assets/L2.png'), pygame.image.load('assets/L3.png'), pygame.image.load('assets/L4.png'), pygame.image.load('assets/L5.png'), pygame.image.load('assets/L6.png'), pygame.image.load('assets/L7.png'), pygame.image.load('assets/L8.png'), pygame.image.load('assets/L9.png')]
 bg = pygame.image.load('assets/bg.jpg')
 char = pygame.image.load('assets/standing.png')
+font = pygame.font.SysFont("arial", 24)
 
-
-class Player():
+class Player:
     def __init__(self, x, y, width, height,vel,jumpFrame):
         self.x = x
         self.y = y
@@ -35,6 +35,7 @@ class Player():
         self.right = True
         self.walkFrame = 0
         self.ammo = 10
+        self.max_ammo = 10
         self.last_reload_time = pygame.time.get_ticks()
         self.reload_delay = 5000
 
@@ -63,7 +64,7 @@ class Player():
         current_time = pygame.time.get_ticks()
         if current_time - self.last_reload_time >= self.reload_delay:
             self.ammo += 5
-            self.ammo = min(self.ammo, 10)
+            self.ammo = min(self.ammo, self.max_ammo)
             self.last_reload_time = current_time
     def shoot(self):
         if self.ammo <= 0:
@@ -95,11 +96,17 @@ class Projectile:
         return 0 < self.x < width
 
 
-
+def draw_ammo_bar(win, x, y, ammo, max_ammo, width=100, height=16):
+    ratio = ammo / max_ammo if max_ammo > 0 else 0
+    pygame.draw.rect(win, (80, 80, 80), (x, y, width, height))
+    pygame.draw.rect(win, (50, 150, 255), (x, y, width * ratio, height))
+    pygame.draw.rect(win, (255, 255, 255), (x, y, width, height), 2)
 
 def redrawGameWindow(man):
     win.blit(bg, (0, 0))
+    
     man.draw(win)
+    draw_ammo_bar(win, 10, 10, man.ammo, man.max_ammo)
 
     for bullet in bullets[:]:  # Iterate over a copy of the list to avoid modification issues 
         bullet.update()
@@ -148,8 +155,6 @@ while running:
     if not man.isJump:
         if keys[pygame.K_SPACE]:
             man.isJump = True
-            man.left = False
-            man.right = False
             man.walkFrame = 0 
     else:
         man.jump()
