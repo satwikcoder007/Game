@@ -33,12 +33,13 @@ class Player:
         self.jumpFrame = jumpFrame
         self.left = False
         self.right = True
+        self.up = False
+        self.down = False
         self.walkFrame = 0
         self.ammo = 10
         self.max_ammo = 10
         self.last_reload_time = pygame.time.get_ticks()
         self.reload_delay = 5000
-
     def draw(self, win):
         if self.walkFrame > 17:
             self.walkFrame = 0
@@ -49,6 +50,7 @@ class Player:
             win.blit(walkLeft[self.walkFrame//2],(self.x,self.y))
             self.walkFrame += 1
         else:
+            self.walkFrame = 0
             win.blit(char, (self.x, self.y))
     def jump(self):
         if self.jumpFrame >= -10:
@@ -71,8 +73,12 @@ class Player:
             return
         if self.right:
             facing = 1
+        elif self.left:
+            facing = 2
+        elif self.up:
+            facing = 3
         else:
-            facing = -1
+            facing = 4
         bullet = Projectile(self.x+self.width//2,self.y+self.height//2,5,(0,0,0),facing,8)
         bullets.append(bullet)
         self.ammo -= 1
@@ -85,33 +91,36 @@ class Projectile:
         self.color = color
         self.facing = facing
         self.vel = vel
-
     def update(self):
-        self.x += self.vel * self.facing
-
+        if self.facing == 1:  
+            self.x += self.vel
+        elif self.facing == 2:  
+            self.x -= self.vel
+        elif self.facing == 3:  
+            self.y -= self.vel
+        else:  
+            self.y += self.vel
     def draw(self, win):
         pygame.draw.circle(win, self.color, (int(self.x), int(self.y)), self.radius)
+    def is_on_screen(self, width, height):
+        return 0 < self.x < width and 0 < self.y < height
 
-    def is_on_screen(self, width):
-        return 0 < self.x < width
 
-
-def draw_ammo_bar(win, x, y, ammo, max_ammo, width=100, height=16):
-    ratio = ammo / max_ammo if max_ammo > 0 else 0
-    pygame.draw.rect(win, (80, 80, 80), (x, y, width, height))
-    pygame.draw.rect(win, (50, 150, 255), (x, y, width * ratio, height))
-    pygame.draw.rect(win, (255, 255, 255), (x, y, width, height), 2)
-
+def draw_ammo_segments(win, x, y, ammo, max_ammo, size=15, gap=3):
+    for i in range(max_ammo):
+        color = (50, 150, 255) if i < ammo else (60, 60, 60)
+        pygame.draw.rect(win, color, (x + i*(size+gap), y, size, size))
+        pygame.draw.rect(win, (255, 255, 255), (x + i*(size+gap), y, size, size), 1)
 def redrawGameWindow(man):
     win.blit(bg, (0, 0))
     
     man.draw(win)
-    draw_ammo_bar(win, 10, 10, man.ammo, man.max_ammo)
+    draw_ammo_segments(win, 10, 10, man.ammo, man.max_ammo)
 
     for bullet in bullets[:]:  # Iterate over a copy of the list to avoid modification issues 
         bullet.update()
 
-        if bullet.is_on_screen(length):
+        if bullet.is_on_screen(length, width):
             bullet.draw(win)
         else:
             bullets.remove(bullet)
@@ -131,25 +140,44 @@ while running:
     ## ammo refill
     man.reload()
 
+    keys = pygame.key.get_pressed() ## this line checks which keys are currently pressed and returns a list of boolean value
+
     for event in pygame.event.get(): ## This line retrives all the event object that occcured since the last time this line was executed.
         if event.type == pygame.QUIT:
             running = False
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1: ## this line checks if the right mouse button is pressed
             man.shoot()
     
-    keys = pygame.key.get_pressed() ## this line checks which keys are currently pressed and returns a list of boolean value
+    
     
     ## Horizontal movement
     if keys[pygame.K_a] and man.x>man.vel:
        man.x-=man.vel
        man.left = True
        man.right = False
+       man.up = False
+       man.down = False
     elif keys[pygame.K_d] and man.x<length-man.width-man.vel:
         man.x+=man.vel
         man.left = False
         man.right = True
-    else:
+        man.up = False
+        man.down = False
+    
+    ## Vertical shooting movement
+    elif keys[pygame.K_w]:
+        man.left = False
+        man.right = False
+        man.up = True
         man.walkFrame = 0 
+    elif keys[pygame.K_s]:
+        man.left = False
+        man.right = False
+        man.up = False
+        man.down = True
+        man.walkFrame = 0
+    else:
+        man.walkFrame = 0
         
     ## Vertical movement (jumping) 
     if not man.isJump:
