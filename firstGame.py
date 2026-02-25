@@ -3,6 +3,7 @@ from turtle import right
 import pygame
 
 pygame.init()
+pygame.mixer.init()
 
 length = 500
 width = 480
@@ -18,6 +19,16 @@ clock = pygame.time.Clock()
 
 bg = pygame.image.load('assets/bg.jpg')
 font = pygame.font.SysFont("arial", 24)
+
+## sound effects
+shoot_sound = pygame.mixer.Sound("assets/sounds/impact.mp3")
+shoot_sound.set_volume(0.4)
+
+reload_sound = pygame.mixer.Sound("assets/sounds/reload.mp3")
+reload_sound.set_volume(0.4)
+
+jump_sound = pygame.mixer.Sound("assets/sounds/jump.mp3")
+jump_sound.set_volume(0.1)
 
 class Player:
 
@@ -74,6 +85,8 @@ class Player:
     def reload(self):
         current_time = pygame.time.get_ticks()
         if current_time - self.last_reload_time >= self.reload_delay:
+            if self.ammo < self.max_ammo:
+                reload_sound.play()
             self.ammo += 5
             self.ammo = min(self.ammo, self.max_ammo)
             self.last_reload_time = current_time
@@ -154,6 +167,7 @@ def redrawGameWindow():
         if bullet.id == 1 and players[1].hitbox[0] < bullet.x < players[1].hitbox[0] + players[1].hitbox[2] and players[1].hitbox[1] < bullet.y < players[1].hitbox[1] + players[1].hitbox[3]:
             players[1].health -= 1
             bullets.remove(bullet)
+            shoot_sound.play()
         if bullet.is_on_screen(length, width):
             bullet.draw(win)
         else:
@@ -164,7 +178,6 @@ def redrawGameWindow():
 
 
 players = [Player(1, 50, 410, 64, 64, 5, 10), Player(2, 400, 410, 72, 72, 5, 10)]
-
 running = True
 bullets = []
 
@@ -221,7 +234,8 @@ while running:
     if not players[0].isJump:
         if keys[pygame.K_SPACE]:
             players[0].isJump = True
-            players[0].walkFrame = 0 
+            players[0].walkFrame = 0
+            jump_sound.play()
     else:
         players[0].jump()
     
