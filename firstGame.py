@@ -16,14 +16,13 @@ The first number is the width and the second number is the height.
 pygame.display.set_caption("First Game")
 clock = pygame.time.Clock()
 
-walkRight = [pygame.image.load('assets/R1.png'), pygame.image.load('assets/R2.png'), pygame.image.load('assets/R3.png'), pygame.image.load('assets/R4.png'), pygame.image.load('assets/R5.png'), pygame.image.load('assets/R6.png'), pygame.image.load('assets/R7.png'), pygame.image.load('assets/R8.png'), pygame.image.load('assets/R9.png')]
-walkLeft = [pygame.image.load('assets/L1.png'), pygame.image.load('assets/L2.png'), pygame.image.load('assets/L3.png'), pygame.image.load('assets/L4.png'), pygame.image.load('assets/L5.png'), pygame.image.load('assets/L6.png'), pygame.image.load('assets/L7.png'), pygame.image.load('assets/L8.png'), pygame.image.load('assets/L9.png')]
 bg = pygame.image.load('assets/bg.jpg')
-char = pygame.image.load('assets/standing.png')
 font = pygame.font.SysFont("arial", 24)
 
 class Player:
-    def __init__(self, x, y, width, height,vel,jumpFrame):
+
+    def __init__(self, id, x, y, width, height,vel,jumpFrame):
+        self.id = id
         self.x = x
         self.y = y
         self.width = width
@@ -32,7 +31,7 @@ class Player:
         self.isJump = False
         self.jumpFrame = jumpFrame
         self.left = False
-        self.right = True
+        self.right = False
         self.up = False
         self.down = False
         self.walkFrame = 0
@@ -40,18 +39,22 @@ class Player:
         self.max_ammo = 10
         self.last_reload_time = pygame.time.get_ticks()
         self.reload_delay = 5000
+        self.walkRight = [pygame.image.load(f"assets/player{self.id}/R{i}.png") for i in range(1,10)]
+        self.walkLeft = [pygame.image.load(f"assets/player{self.id}/L{i}.png") for i in range(1,10)]
+        self.char = pygame.image.load(f"assets/player{self.id}/standing.png").convert_alpha()
+        self.char = pygame.transform.scale(self.char, (self.width, self.height))
     def draw(self, win):
         if self.walkFrame > 17:
             self.walkFrame = 0
         if self.right:
-            win.blit(walkRight[self.walkFrame//2],(self.x,self.y))
+            win.blit(self.walkRight[self.walkFrame//2],(self.x,self.y))
             self.walkFrame += 1
         elif self.left:
-            win.blit(walkLeft[self.walkFrame//2],(self.x,self.y))
+            win.blit(self.walkLeft[self.walkFrame//2],(self.x,self.y))
             self.walkFrame += 1
         else:
             self.walkFrame = 0
-            win.blit(char, (self.x, self.y))
+            win.blit(self.char, (self.x, self.y))
     def jump(self):
         if self.jumpFrame >= -10:
             direction = 1
@@ -77,14 +80,18 @@ class Player:
             facing = 2
         elif self.up:
             facing = 3
-        else:
+        elif self.down:
             facing = 4
-        bullet = Projectile(self.x+self.width//2,self.y+self.height//2,5,(0,0,0),facing,8)
+        else :
+            facing = 1
+        bullet = Projectile(self.id,self.x+self.width//2,self.y+self.height//2,5,(0,0,0),facing,8)
         bullets.append(bullet)
         self.ammo -= 1
         
 class Projectile:
-    def __init__(self, x, y, radius, color, facing, vel):
+
+    def __init__(self, id, x, y, radius, color, facing, vel):
+        self.id = id
         self.x = x
         self.y = y
         self.radius = radius
@@ -111,11 +118,16 @@ def draw_ammo_segments(win, x, y, ammo, max_ammo, size=15, gap=3):
         color = (50, 150, 255) if i < ammo else (60, 60, 60)
         pygame.draw.rect(win, color, (x + i*(size+gap), y, size, size))
         pygame.draw.rect(win, (255, 255, 255), (x + i*(size+gap), y, size, size), 1)
-def redrawGameWindow(man):
+def redrawGameWindow():
     win.blit(bg, (0, 0))
     
-    man.draw(win)
-    draw_ammo_segments(win, 10, 10, man.ammo, man.max_ammo)
+    for player in players:
+        player.draw(win)
+        pygame.draw.rect(win, (255, 0, 0), (player.x, player.y, player.width, player.height), 2)
+        if player.id == 1:
+            draw_ammo_segments(win, 10, 10, player.ammo, player.max_ammo)
+        else:
+            draw_ammo_segments(win, length - 10 - player.max_ammo*18, 10, player.ammo, player.max_ammo)
 
     for bullet in bullets[:]:  # Iterate over a copy of the list to avoid modification issues 
         bullet.update()
@@ -127,7 +139,9 @@ def redrawGameWindow(man):
 
     pygame.display.update()
 
-man = Player(50, 410, 64, 64, 5, 10)
+
+players = [Player(1, 50, 410, 64, 64, 5, 10), Player(2, 400, 410, 69, 69, 5, 10)]
+
 running = True
 bullets = []
 
@@ -138,7 +152,8 @@ while running:
     current_time = pygame.time.get_ticks()
 
     ## ammo refill
-    man.reload()
+    for player in players:
+        player.reload()
 
     keys = pygame.key.get_pressed() ## this line checks which keys are currently pressed and returns a list of boolean value
 
@@ -146,47 +161,47 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1: ## this line checks if the right mouse button is pressed
-            man.shoot()
+            players[0].shoot()
     
     
     
     ## Horizontal movement
-    if keys[pygame.K_a] and man.x>man.vel:
-       man.x-=man.vel
-       man.left = True
-       man.right = False
-       man.up = False
-       man.down = False
-    elif keys[pygame.K_d] and man.x<length-man.width-man.vel:
-        man.x+=man.vel
-        man.left = False
-        man.right = True
-        man.up = False
-        man.down = False
+    if keys[pygame.K_a] and players[0].x>players[0].vel:
+       players[0].x-=players[0].vel
+       players[0].left = True
+       players[0].right = False
+       players[0].up = False
+       players[0].down = False
+    elif keys[pygame.K_d] and players[0].x<length-players[0].width-players[0].vel:
+        players[0].x+=players[0].vel
+        players[0].left = False
+        players[0].right = True
+        players[0].up = False
+        players[0].down = False
     
     ## Vertical shooting movement
     elif keys[pygame.K_w]:
-        man.left = False
-        man.right = False
-        man.up = True
-        man.walkFrame = 0 
+        players[0].left = False
+        players[0].right = False
+        players[0].up = True
+        players[0].walkFrame = 0 
     elif keys[pygame.K_s]:
-        man.left = False
-        man.right = False
-        man.up = False
-        man.down = True
-        man.walkFrame = 0
+        players[0].left = False
+        players[0].right = False
+        players[0].up = False
+        players[0].down = True
+        players[0].walkFrame = 0
     else:
-        man.walkFrame = 0
+        players[0].walkFrame = 0
         
     ## Vertical movement (jumping) 
-    if not man.isJump:
+    if not players[0].isJump:
         if keys[pygame.K_SPACE]:
-            man.isJump = True
-            man.walkFrame = 0 
+            players[0].isJump = True
+            players[0].walkFrame = 0 
     else:
-        man.jump()
+        players[0].jump()
     
-    redrawGameWindow(man)
+    redrawGameWindow()
 
 pygame.quit()
