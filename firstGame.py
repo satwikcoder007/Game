@@ -37,8 +37,11 @@ class Player:
         self.walkFrame = 0
         self.ammo = 10
         self.max_ammo = 10
+        self.health = 10
+        self.max_health = 10    
         self.last_reload_time = pygame.time.get_ticks()
         self.reload_delay = 5000
+        self.hitbox = (self.x+20, self.y+8, 28, 60)
         self.walkRight = [pygame.image.load(f"assets/player{self.id}/R{i}.png") for i in range(1,10)]
         self.walkLeft = [pygame.image.load(f"assets/player{self.id}/L{i}.png") for i in range(1,10)]
         self.char = pygame.image.load(f"assets/player{self.id}/standing.png").convert_alpha()
@@ -55,6 +58,9 @@ class Player:
         else:
             self.walkFrame = 0
             win.blit(self.char, (self.x, self.y))
+
+        self.hitbox = (self.x+20, self.y+8, 28, 60)
+        pygame.draw.rect(win, (255, 0, 0), self.hitbox, 2)
     def jump(self):
         if self.jumpFrame >= -10:
             direction = 1
@@ -112,7 +118,20 @@ class Projectile:
     def is_on_screen(self, width, height):
         return 0 < self.x < width and 0 < self.y < height
 
-
+def draw_heart(win, x, y, size, color):
+    r = size // 4
+    pygame.draw.circle(win, color, (x + r, y + r), r)
+    pygame.draw.circle(win, color, (x + 3*r, y + r), r)
+    points = [
+        (x, y + r),
+        (x + size, y + r),
+        (x + size//2, y + size)
+    ]
+    pygame.draw.polygon(win, color, points)
+def draw_health_hearts(win, x, y, health, max_health, size=12, gap=6):
+    for i in range(max_health):
+        color = (220, 20, 60) if i < health else (80, 80, 80)
+        draw_heart(win, x + i*(size + gap), y, size, color)
 def draw_ammo_segments(win, x, y, ammo, max_ammo, size=15, gap=3):
     for i in range(max_ammo):
         color = (50, 150, 255) if i < ammo else (60, 60, 60)
@@ -123,15 +142,18 @@ def redrawGameWindow():
     
     for player in players:
         player.draw(win)
-        pygame.draw.rect(win, (255, 0, 0), (player.x, player.y, player.width, player.height), 2)
         if player.id == 1:
             draw_ammo_segments(win, 10, 10, player.ammo, player.max_ammo)
+            draw_health_hearts(win, 10, 40, player.health, player.max_health)
         else:
             draw_ammo_segments(win, length - 10 - player.max_ammo*18, 10, player.ammo, player.max_ammo)
+            draw_health_hearts(win, length - 10 - player.max_health*18, 40, player.health, player.max_health)
 
     for bullet in bullets[:]:  # Iterate over a copy of the list to avoid modification issues 
         bullet.update()
-
+        if bullet.id == 1 and players[1].hitbox[0] < bullet.x < players[1].hitbox[0] + players[1].hitbox[2] and players[1].hitbox[1] < bullet.y < players[1].hitbox[1] + players[1].hitbox[3]:
+            players[1].health -= 1
+            bullets.remove(bullet)
         if bullet.is_on_screen(length, width):
             bullet.draw(win)
         else:
@@ -140,7 +162,8 @@ def redrawGameWindow():
     pygame.display.update()
 
 
-players = [Player(1, 50, 410, 64, 64, 5, 10), Player(2, 400, 410, 69, 69, 5, 10)]
+
+players = [Player(1, 50, 410, 64, 64, 5, 10), Player(2, 400, 410, 72, 72, 5, 10)]
 
 running = True
 bullets = []
