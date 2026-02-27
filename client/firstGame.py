@@ -92,7 +92,7 @@ class Player:
             self.last_reload_time = current_time
     def shoot(self):
         if self.ammo <= 0:
-            return
+            return None
         if self.right:
             facing = 1
         elif self.left:
@@ -104,8 +104,8 @@ class Player:
         else :
             facing = 1
         bullet = Projectile(self.id,self.x+self.width//2,self.y+self.height//2,5,(0,0,0),facing,8)
-        bullets.append(bullet)
         self.ammo -= 1
+        return bullet
         
 class Projectile:
 
@@ -150,7 +150,8 @@ def draw_ammo_segments(win, x, y, ammo, max_ammo, size=15, gap=3):
         color = (50, 150, 255) if i < ammo else (60, 60, 60)
         pygame.draw.rect(win, color, (x + i*(size+gap), y, size, size))
         pygame.draw.rect(win, (255, 255, 255), (x + i*(size+gap), y, size, size), 1)
-def redrawGameWindow():
+def redrawGameWindow(players, bullets, player_id):
+    opponent = 2 if player_id == 1 else 1
     win.blit(bg, (0, 0))
     
     for player in players:
@@ -164,8 +165,8 @@ def redrawGameWindow():
 
     for bullet in bullets[:]:  # Iterate over a copy of the list to avoid modification issues 
         bullet.update()
-        if bullet.id == 1 and players[1].hitbox[0] < bullet.x < players[1].hitbox[0] + players[1].hitbox[2] and players[1].hitbox[1] < bullet.y < players[1].hitbox[1] + players[1].hitbox[3]:
-            players[1].health -= 1
+        if bullet.id == player_id and players[opponent-1].hitbox[0] < bullet.x < players[opponent-1].hitbox[0] + players[opponent-1].hitbox[2] and players[opponent-1].hitbox[1] < bullet.y < players[opponent-1].hitbox[1] + players[opponent-1].hitbox[3]:
+            players[opponent-1].health -= 1
             bullets.remove(bullet)
             shoot_sound.play()
         if bullet.is_on_screen(length, width):
@@ -176,69 +177,71 @@ def redrawGameWindow():
     pygame.display.update()
 
 
+def run_game(client, player_id):
+    players = [Player(1, 50, 410, 64, 64, 5, 10), Player(2, 400, 410, 72, 72, 5, 10)]
+    running = True
+    bullets = []
 
-players = [Player(1, 50, 410, 64, 64, 5, 10), Player(2, 400, 410, 72, 72, 5, 10)]
-running = True
-bullets = []
+    ## This is the main game loop. It will run until the user closes the window. The loop checks for events (like key presses or mouse clicks) and updates the game state accordingly. In this case, we are only checking for the QUIT event, which is triggered when the user clicks the close button on the window. If that event is detected, we set running to False, which will exit the loop and end the game.
+    while running:
+        clock.tick(27) ## This line sets the fps
 
-## This is the main game loop. It will run until the user closes the window. The loop checks for events (like key presses or mouse clicks) and updates the game state accordingly. In this case, we are only checking for the QUIT event, which is triggered when the user clicks the close button on the window. If that event is detected, we set running to False, which will exit the loop and end the game.
-while running:
-    clock.tick(27) ## This line sets the fps
+        current_time = pygame.time.get_ticks()
 
-    current_time = pygame.time.get_ticks()
+        ## ammo refill
+        for player in players:
+            player.reload()
 
-    ## ammo refill
-    for player in players:
-        player.reload()
+        keys = pygame.key.get_pressed() ## this line checks which keys are currently pressed and returns a list of boolean value
 
-    keys = pygame.key.get_pressed() ## this line checks which keys are currently pressed and returns a list of boolean value
-
-    for event in pygame.event.get(): ## This line retrives all the event object that occcured since the last time this line was executed.
-        if event.type == pygame.QUIT:
-            running = False
-        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1: ## this line checks if the right mouse button is pressed
-            players[0].shoot()
-    
-    
-    
-    ## Horizontal movement
-    if keys[pygame.K_a] and players[0].x>players[0].vel:
-       players[0].x-=players[0].vel
-       players[0].left = True
-       players[0].right = False
-       players[0].up = False
-       players[0].down = False
-    elif keys[pygame.K_d] and players[0].x<length-players[0].width-players[0].vel:
-        players[0].x+=players[0].vel
-        players[0].left = False
-        players[0].right = True
-        players[0].up = False
-        players[0].down = False
-    
-    ## Vertical shooting movement
-    elif keys[pygame.K_w]:
-        players[0].left = False
-        players[0].right = False
-        players[0].up = True
-        players[0].walkFrame = 0 
-    elif keys[pygame.K_s]:
-        players[0].left = False
-        players[0].right = False
-        players[0].up = False
-        players[0].down = True
-        players[0].walkFrame = 0
-    else:
-        players[0].walkFrame = 0
+        for event in pygame.event.get(): ## This line retrives all the event object that occcured since the last time this line was executed.
+            if event.type == pygame.QUIT:
+                running = False
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1: ## this line checks if the right mouse button is pressed
+               bullet = players[player_id-1].shoot()
+               if bullet:
+                   bullets.append(bullet)
         
-    ## Vertical movement (jumping) 
-    if not players[0].isJump:
-        if keys[pygame.K_SPACE]:
-            players[0].isJump = True
-            players[0].walkFrame = 0
-            jump_sound.play()
-    else:
-        players[0].jump()
-    
-    redrawGameWindow()
+        
+        ## Horizontal movement
+        if keys[pygame.K_a] and players[player_id-1].x>players[player_id-1].vel:
+            players[player_id-1].x-=players[player_id-1].vel
+            players[player_id-1].left = True
+            players[player_id-1].right = False
+            players[player_id-1].up = False
+            players[player_id-1].down = False
+        elif keys[pygame.K_d] and players[player_id-1].x<length-players[player_id-1].width-players[player_id-1].vel:
+            players[player_id-1].x+=players[player_id-1].vel
+            players[player_id-1].left = False
+            players[player_id-1].right = True
+            players[player_id-1].up = False
+            players[player_id-1].down = False
+        
+        ## Vertical shooting movement
+        elif keys[pygame.K_w]:
+            players[player_id-1].left = False
+            players[player_id-1].right = False
+            players[player_id-1].up = True
+            players[player_id-1].walkFrame = 0 
+        elif keys[pygame.K_s]:
+            players[player_id-1].left = False
+            players[player_id-1].right = False
+            players[player_id-1].up = False
+            players[player_id-1].down = True
+            players[player_id-1].walkFrame = 0
+        else:
+            players[player_id-1].walkFrame = 0
+            
+        ## Vertical movement (jumping) 
+        if not players[player_id-1].isJump:
+            if keys[pygame.K_SPACE]:
+                players[player_id-1].isJump = True
+                players[player_id-1].walkFrame = 0
+                jump_sound.play()
+        else:
+            players[player_id-1].jump()
+        
+        redrawGameWindow(players, bullets, player_id)
 
-pygame.quit()
+    pygame.quit()
+
