@@ -1,5 +1,16 @@
-myenv
-assets
-server/.env
-server/utils/__pycache__
-client/.env
+# Python cache
+__pycache__/
+**/__pycache__/
+*.py[cod]
+
+# Environment files
+.env
+*.env
+**/.env
+
+# Virtual environments (optional but recommended)
+myenv/
+venv/
+.venv/
+
+assets/

@@ -6,3 +6,7 @@ class Match:
         for p in self.players:
             if p != sender:
                 p.send(data)
+    def close(self):
+        for p in self.players:
+            p.close()
+        

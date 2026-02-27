@@ -1,6 +1,7 @@
 import socket
 import os
 from dotenv import load_dotenv, dotenv_values
+import time
 
 load_dotenv()
 
@@ -12,6 +13,7 @@ client.connect((HOST, PORT))
 
 print("Connected to server. Type messages:")
 
+time.sleep(5)  # Wait for the server to be ready
 
 msg = "can i play"
 client.send(msg.encode())
