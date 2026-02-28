@@ -2,9 +2,11 @@ import socket
 import os
 from dotenv import load_dotenv, dotenv_values
 import time
-
+import threading
 from utils.wait_for_match import wait_for_match
+from utils.receive_message import receive_message
 from firstGame import run_game
+import queue
 
 load_dotenv()
 
@@ -15,5 +17,9 @@ client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client.connect((HOST, PORT))
 
 player_id = wait_for_match(client)
-run_game(client, player_id)
+
+oponent_queue = queue.Queue() ## surprisingly these are thread safe
+
+threading.Thread(target=receive_message, args=(client,oponent_queue,), daemon=True).start()
+run_game(client, player_id,oponent_queue)
 

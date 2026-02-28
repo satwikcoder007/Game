@@ -1,6 +1,7 @@
-from turtle import right
-
 import pygame
+
+from utils.send_message import send_message
+from utils.player_state import get_player_state, set_player_state
 
 pygame.init()
 pygame.mixer.init()
@@ -45,6 +46,7 @@ class Player:
         self.right = False
         self.up = False
         self.down = False
+        self.moving = False
         self.walkFrame = 0
         self.ammo = 10
         self.max_ammo = 10
@@ -58,7 +60,7 @@ class Player:
         self.char = pygame.image.load(f"assets/player{self.id}/standing.png").convert_alpha()
         self.char = pygame.transform.scale(self.char, (self.width, self.height))
     def draw(self, win):
-        if self.walkFrame > 17:
+        if self.walkFrame > len(self.walkRight)*2 - 1 or self.moving == False:
             self.walkFrame = 0
         if self.right:
             win.blit(self.walkRight[self.walkFrame//2],(self.x,self.y))
@@ -177,16 +179,15 @@ def redrawGameWindow(players, bullets, player_id):
     pygame.display.update()
 
 
-def run_game(client, player_id):
-    players = [Player(1, 50, 410, 64, 64, 5, 10), Player(2, 400, 410, 72, 72, 5, 10)]
+def run_game(client, player_id,opponent_queue):
+    opponent_id = 2 if player_id == 1 else 1
+    players = [Player(1, 50, 410, 64, 64, 4, 10), Player(2, 400, 410, 72, 72, 4, 10)]
     running = True
     bullets = []
-
+    last_state = None
     ## This is the main game loop. It will run until the user closes the window. The loop checks for events (like key presses or mouse clicks) and updates the game state accordingly. In this case, we are only checking for the QUIT event, which is triggered when the user clicks the close button on the window. If that event is detected, we set running to False, which will exit the loop and end the game.
     while running:
-        clock.tick(27) ## This line sets the fps
-
-        current_time = pygame.time.get_ticks()
+        clock.tick(32) ## This line sets the fps
 
         ## ammo refill
         for player in players:
@@ -206,12 +207,14 @@ def run_game(client, player_id):
         ## Horizontal movement
         if keys[pygame.K_a] and players[player_id-1].x>players[player_id-1].vel:
             players[player_id-1].x-=players[player_id-1].vel
+            players[player_id-1].moving = True
             players[player_id-1].left = True
             players[player_id-1].right = False
             players[player_id-1].up = False
-            players[player_id-1].down = False
+            players[player_id-1].down = False  
         elif keys[pygame.K_d] and players[player_id-1].x<length-players[player_id-1].width-players[player_id-1].vel:
             players[player_id-1].x+=players[player_id-1].vel
+            players[player_id-1].moving = True
             players[player_id-1].left = False
             players[player_id-1].right = True
             players[player_id-1].up = False
@@ -219,27 +222,54 @@ def run_game(client, player_id):
         
         ## Vertical shooting movement
         elif keys[pygame.K_w]:
+            players[player_id-1].moving = False
             players[player_id-1].left = False
             players[player_id-1].right = False
             players[player_id-1].up = True
-            players[player_id-1].walkFrame = 0 
+            players[player_id-1].down = False
         elif keys[pygame.K_s]:
+            players[player_id-1].moving = False
             players[player_id-1].left = False
             players[player_id-1].right = False
             players[player_id-1].up = False
             players[player_id-1].down = True
-            players[player_id-1].walkFrame = 0
         else:
-            players[player_id-1].walkFrame = 0
+            players[player_id-1].moving = False
             
         ## Vertical movement (jumping) 
         if not players[player_id-1].isJump:
             if keys[pygame.K_SPACE]:
                 players[player_id-1].isJump = True
-                players[player_id-1].walkFrame = 0
                 jump_sound.play()
         else:
             players[player_id-1].jump()
+        
+        ## Send player state to server if changed
+        current_state = get_player_state(players[player_id-1])
+        if current_state != last_state:
+            send_message(client, {
+                "type": "move",
+                **current_state
+            })
+            last_state = current_state
+        
+        ##update opponent state from server messages
+        while not opponent_queue.empty():
+            message = opponent_queue.get()
+            if message["type"] == "move":
+                opponent_state = {
+                    "x": message["x"],
+                    "y": message["y"],
+                    "left": message["left"],
+                    "right": message["right"],
+                    "up": message["up"],
+                    "down": message["down"],
+                    "moving": message["moving"]
+                }
+                set_player_state(players[opponent_id-1], opponent_state)
+            # elif message["type"] == "shoot":
+            #     bullet = Projectile(opponent_id, players[opponent_id-1].x+players[opponent_id-1].width//2, players[opponent_id-1].y+players[opponent_id-1].height//2, 5, (0,0,0), message["facing"], 8)
+            #     bullets.append(bullet)
         
         redrawGameWindow(players, bullets, player_id)
 
