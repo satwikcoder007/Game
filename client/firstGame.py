@@ -31,6 +31,12 @@ hurt_sound.set_volume(0.4)
 reload_sound = pygame.mixer.Sound("assets/sounds/reload.mp3")
 reload_sound.set_volume(0.4)
 
+victory_sound = pygame.mixer.Sound("assets/sounds/victory.mp3")
+victory_sound.set_volume(0.4)
+
+defeat_sound = pygame.mixer.Sound("assets/sounds/defeat.mp3")
+defeat_sound.set_volume(0.4)
+
 jump_sound = pygame.mixer.Sound("assets/sounds/jump.mp3")
 jump_sound.set_volume(0.1)
 
@@ -214,6 +220,19 @@ def run_game(client, player_id,opponent_queue):
     while running:
         clock.tick(32) ## This line sets the fps
 
+        ## Check for game over
+        if players[player_id-1].health <= 0:
+            send_message(client, {
+                "type": "game_over",
+                "winner": opponent_id
+            })
+            win.blit(bg, (0, 0))
+            text = font.render("You Lose!", True, (255, 0, 0))
+            win.blit(text, (length//2 - text.get_width()//2, width//2 - text.get_height()//2))
+            pygame.display.update()
+            defeat_sound.play()
+            pygame.time.delay(5000)
+            running = False
         ## ammo refill
         for player in players:
             player.reload()
@@ -303,10 +322,18 @@ def run_game(client, player_id,opponent_queue):
                     "moving": message["moving"]
                 }
                 set_player_state(players[opponent_id-1], opponent_state)
-            else:
+            elif message["type"] == "shoot":
                 bullet = Projectile(message["id"], message["x"], message["y"], message["radius"], message["color"], message["facing"], message["vel"])
                 players[opponent_id-1].ammo = message["ammo"]
                 bullets.append(bullet)
+            else:
+                win.blit(bg, (0, 0))
+                text = font.render("You Win!", True, (255, 0, 0))
+                win.blit(text, (length//2 - text.get_width()//2, width//2 - text.get_height()//2))
+                pygame.display.update()
+                victory_sound.play()
+                pygame.time.delay(5000)
+                running = False
         
         redrawGameWindow(players, bullets, player_id)
 
