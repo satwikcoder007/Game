@@ -25,6 +25,9 @@ font = pygame.font.SysFont("arial", 24)
 shoot_sound = pygame.mixer.Sound("assets/sounds/impact.mp3")
 shoot_sound.set_volume(0.4)
 
+hurt_sound = pygame.mixer.Sound("assets/sounds/hurt.mp3")
+hurt_sound.set_volume(0.4)
+
 reload_sound = pygame.mixer.Sound("assets/sounds/reload.mp3")
 reload_sound.set_volume(0.4)
 
@@ -54,11 +57,12 @@ class Player:
         self.max_health = 10    
         self.last_reload_time = pygame.time.get_ticks()
         self.reload_delay = 5000
-        self.hitbox = (self.x+20, self.y+8, 28, 60)
+        self.hitbox_width = 28
+        self.hitbox_height = 60
+        self.hitbox = self.update_hitbox()
         self.walkRight = [pygame.image.load(f"assets/player{self.id}/R{i}.png") for i in range(1,10)]
         self.walkLeft = [pygame.image.load(f"assets/player{self.id}/L{i}.png") for i in range(1,10)]
-        self.char = pygame.image.load(f"assets/player{self.id}/standing.png").convert_alpha()
-        self.char = pygame.transform.scale(self.char, (self.width, self.height))
+        self.char = pygame.image.load(f"assets/player{self.id}/standing.png") 
     def draw(self, win):
         if self.walkFrame > len(self.walkRight)*2 - 1 or self.moving == False:
             self.walkFrame = 0
@@ -72,7 +76,7 @@ class Player:
             self.walkFrame = 0
             win.blit(self.char, (self.x, self.y))
 
-        self.hitbox = (self.x+20, self.y+8, 28, 60)
+        self.hitbox = self.update_hitbox()
         pygame.draw.rect(win, (255, 0, 0), self.hitbox, 2)
     def jump(self):
         if self.jumpFrame >= -10:
@@ -104,10 +108,27 @@ class Player:
         elif self.down:
             facing = 4
         else :
-            facing = 1
+            facing = 1 if self.id == 1 else 2
         bullet = Projectile(self.id,self.x+self.width//2,self.y+self.height//2,5,(0,0,0),facing,8)
         self.ammo -= 1
         return bullet
+    def update_hitbox(self):
+        if self.id == 1:
+
+            return (
+                self.x + self.width // 2 - self.hitbox_width // 2,  
+                self.y + self.height - self.hitbox_height,          
+                self.hitbox_width,
+                self.hitbox_height
+            )
+        else:
+            
+           return (
+                self.x,
+                self.y,
+                self.hitbox_width,
+                self.hitbox_height
+            )    
         
 class Projectile:
 
@@ -153,7 +174,7 @@ def draw_ammo_segments(win, x, y, ammo, max_ammo, size=15, gap=3):
         pygame.draw.rect(win, color, (x + i*(size+gap), y, size, size))
         pygame.draw.rect(win, (255, 255, 255), (x + i*(size+gap), y, size, size), 1)
 def redrawGameWindow(players, bullets, player_id):
-    opponent = 2 if player_id == 1 else 1
+    opponent_id = 2 if player_id == 1 else 1
     win.blit(bg, (0, 0))
     
     for player in players:
@@ -167,10 +188,14 @@ def redrawGameWindow(players, bullets, player_id):
 
     for bullet in bullets[:]:  # Iterate over a copy of the list to avoid modification issues 
         bullet.update()
-        if bullet.id == player_id and players[opponent-1].hitbox[0] < bullet.x < players[opponent-1].hitbox[0] + players[opponent-1].hitbox[2] and players[opponent-1].hitbox[1] < bullet.y < players[opponent-1].hitbox[1] + players[opponent-1].hitbox[3]:
-            players[opponent-1].health -= 1
+        if bullet.id == player_id and players[opponent_id-1].hitbox[0] < bullet.x < players[opponent_id-1].hitbox[0] + players[opponent_id-1].hitbox[2] and players[opponent_id-1].hitbox[1] < bullet.y < players[opponent_id-1].hitbox[1] + players[opponent_id-1].hitbox[3]:
+            players[opponent_id-1].health -= 1
             bullets.remove(bullet)
             shoot_sound.play()
+        if bullet.id == opponent_id and players[player_id-1].hitbox[0] < bullet.x < players[player_id-1].hitbox[0] + players[player_id-1].hitbox[2] and players[player_id-1].hitbox[1] < bullet.y < players[player_id-1].hitbox[1] + players[player_id-1].hitbox[3]:
+            players[player_id-1].health -= 1
+            bullets.remove(bullet)
+            hurt_sound.play()
         if bullet.is_on_screen(length, width):
             bullet.draw(win)
         else:
@@ -181,7 +206,7 @@ def redrawGameWindow(players, bullets, player_id):
 
 def run_game(client, player_id,opponent_queue):
     opponent_id = 2 if player_id == 1 else 1
-    players = [Player(1, 50, 410, 64, 64, 4, 10), Player(2, 400, 410, 72, 72, 4, 10)]
+    players = [Player(1, 50, 410, 64, 64, 4, 10), Player(2, 400, 410, 64, 64, 4, 10)]
     running = True
     bullets = []
     last_state = None
@@ -201,6 +226,17 @@ def run_game(client, player_id,opponent_queue):
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1: ## this line checks if the right mouse button is pressed
                bullet = players[player_id-1].shoot()
                if bullet:
+                   send_message(client, {
+                        "type": "shoot",
+                        "id": bullet.id,
+                        "x": bullet.x,
+                        "y": bullet.y,
+                        "radius": bullet.radius,
+                        "color": bullet.color,
+                        "facing": bullet.facing,
+                        "vel": bullet.vel,
+                        "ammo": players[player_id-1].ammo,
+                   })
                    bullets.append(bullet)
         
         
@@ -267,9 +303,10 @@ def run_game(client, player_id,opponent_queue):
                     "moving": message["moving"]
                 }
                 set_player_state(players[opponent_id-1], opponent_state)
-            # elif message["type"] == "shoot":
-            #     bullet = Projectile(opponent_id, players[opponent_id-1].x+players[opponent_id-1].width//2, players[opponent_id-1].y+players[opponent_id-1].height//2, 5, (0,0,0), message["facing"], 8)
-            #     bullets.append(bullet)
+            else:
+                bullet = Projectile(message["id"], message["x"], message["y"], message["radius"], message["color"], message["facing"], message["vel"])
+                players[opponent_id-1].ammo = message["ammo"]
+                bullets.append(bullet)
         
         redrawGameWindow(players, bullets, player_id)
 
