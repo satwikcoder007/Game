@@ -2,6 +2,7 @@ import pygame
 
 from utils.send_message import send_message
 from utils.player_state import get_player_state, set_player_state
+from utils.path import resource_path
 
 length = 500
 width = 480
@@ -34,9 +35,9 @@ class Player:
         self.hitbox_width = 28
         self.hitbox_height = 60
         self.hitbox = self.update_hitbox()
-        self.walkRight = [pygame.image.load(f"assets/player{self.id}/R{i}.png") for i in range(1,10)]
-        self.walkLeft = [pygame.image.load(f"assets/player{self.id}/L{i}.png") for i in range(1,10)]
-        self.char = pygame.image.load(f"assets/player{self.id}/standing.png") 
+        self.walkRight = [pygame.image.load(resource_path(f"assets/player{self.id}/R{i}.png")) for i in range(1,10)]
+        self.walkLeft = [pygame.image.load(resource_path(f"assets/player{self.id}/L{i}.png")) for i in range(1,10)]
+        self.char = pygame.image.load(resource_path(f"assets/player{self.id}/standing.png")) 
     def draw(self, win):
         if self.walkFrame > len(self.walkRight)*2 - 1 or self.moving == False:
             self.walkFrame = 0
@@ -181,26 +182,26 @@ def redrawGameWindow(players, bullets, player_id, win,dependencies):
 def run_game(client, player_id,opponent_queue, win):
 
     ## game sounds
-    shoot_sound = pygame.mixer.Sound("assets/sounds/impact.mp3")
+    shoot_sound = pygame.mixer.Sound(resource_path("assets/sounds/impact.mp3"))
     shoot_sound.set_volume(0.4)
 
-    hurt_sound = pygame.mixer.Sound("assets/sounds/hurt.mp3")
+    hurt_sound = pygame.mixer.Sound(resource_path("assets/sounds/hurt.mp3"))
     hurt_sound.set_volume(0.4)
 
-    reload_sound = pygame.mixer.Sound("assets/sounds/reload.mp3")
+    reload_sound = pygame.mixer.Sound(resource_path("assets/sounds/reload.mp3"))
     reload_sound.set_volume(0.2)
 
-    victory_sound = pygame.mixer.Sound("assets/sounds/victory.mp3")
+    victory_sound = pygame.mixer.Sound(resource_path("assets/sounds/victory.mp3"))
     victory_sound.set_volume(0.4)
 
-    defeat_sound = pygame.mixer.Sound("assets/sounds/defeat.mp3")
+    defeat_sound = pygame.mixer.Sound(resource_path("assets/sounds/defeat.mp3"))
     defeat_sound.set_volume(0.4)
 
-    jump_sound = pygame.mixer.Sound("assets/sounds/jump.mp3")
+    jump_sound = pygame.mixer.Sound(resource_path("assets/sounds/jump.mp3"))
     jump_sound.set_volume(0.1)
     
     dependencies = {
-        "bg" : pygame.image.load('assets/bg.jpg'),
+        "bg" : pygame.image.load(resource_path('assets/bg.jpg')),
         "font" : pygame.font.SysFont("comicsans", 24),
         "shoot_sound" : shoot_sound,
         "hurt_sound" : hurt_sound,

@@ -2,6 +2,7 @@ import pygame
 from utils.draw_menu import draw_menu
 from network import connect_to_server
 from firstGame import run_game
+from utils.path import resource_path
 
 def start_online_game(win):
     client, player_id, opponent_queue = connect_to_server()
@@ -16,7 +17,7 @@ def init_menu_window():
     win = pygame.display.set_mode((500, 480))
     pygame.display.set_caption("First Game")
 
-    bg = pygame.image.load('assets/bg.jpg')
+    bg = pygame.image.load(resource_path('assets/bg.jpg'))
     title_font = pygame.font.SysFont("comicsans", 40)
     menu_font = pygame.font.SysFont("comicsans", 20)
 
