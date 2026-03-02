@@ -3,42 +3,10 @@ import pygame
 from utils.send_message import send_message
 from utils.player_state import get_player_state, set_player_state
 
-pygame.init()
-pygame.mixer.init()
-
 length = 500
 width = 480
 
-win = pygame.display.set_mode((length, width))
-"""
-this is the window object that we will be using to display our game. The argument (500, 500) is the size of the window in pixels. 
-The first number is the width and the second number is the height.
-"""
 
-pygame.display.set_caption("First Game")
-clock = pygame.time.Clock()
-
-bg = pygame.image.load('assets/bg.jpg')
-font = pygame.font.SysFont("arial", 24)
-
-## sound effects
-shoot_sound = pygame.mixer.Sound("assets/sounds/impact.mp3")
-shoot_sound.set_volume(0.4)
-
-hurt_sound = pygame.mixer.Sound("assets/sounds/hurt.mp3")
-hurt_sound.set_volume(0.4)
-
-reload_sound = pygame.mixer.Sound("assets/sounds/reload.mp3")
-reload_sound.set_volume(0.4)
-
-victory_sound = pygame.mixer.Sound("assets/sounds/victory.mp3")
-victory_sound.set_volume(0.4)
-
-defeat_sound = pygame.mixer.Sound("assets/sounds/defeat.mp3")
-defeat_sound.set_volume(0.4)
-
-jump_sound = pygame.mixer.Sound("assets/sounds/jump.mp3")
-jump_sound.set_volume(0.1)
 
 class Player:
 
@@ -94,11 +62,11 @@ class Player:
         else:
             self.isJump = False
             self.jumpFrame = 10
-    def reload(self):
+    def reload(self,dependencies):
         current_time = pygame.time.get_ticks()
         if current_time - self.last_reload_time >= self.reload_delay:
             if self.ammo < self.max_ammo:
-                reload_sound.play()
+                dependencies["reload_sound"].play()
             self.ammo += 5
             self.ammo = min(self.ammo, self.max_ammo)
             self.last_reload_time = current_time
@@ -179,9 +147,9 @@ def draw_ammo_segments(win, x, y, ammo, max_ammo, size=15, gap=3):
         color = (50, 150, 255) if i < ammo else (60, 60, 60)
         pygame.draw.rect(win, color, (x + i*(size+gap), y, size, size))
         pygame.draw.rect(win, (255, 255, 255), (x + i*(size+gap), y, size, size), 1)
-def redrawGameWindow(players, bullets, player_id):
+def redrawGameWindow(players, bullets, player_id, win,dependencies):
     opponent_id = 2 if player_id == 1 else 1
-    win.blit(bg, (0, 0))
+    win.blit(dependencies["bg"], (0, 0))
     
     for player in players:
         player.draw(win)
@@ -197,11 +165,11 @@ def redrawGameWindow(players, bullets, player_id):
         if bullet.id == player_id and players[opponent_id-1].hitbox[0] < bullet.x < players[opponent_id-1].hitbox[0] + players[opponent_id-1].hitbox[2] and players[opponent_id-1].hitbox[1] < bullet.y < players[opponent_id-1].hitbox[1] + players[opponent_id-1].hitbox[3]:
             players[opponent_id-1].health -= 1
             bullets.remove(bullet)
-            shoot_sound.play()
+            dependencies["shoot_sound"].play()
         if bullet.id == opponent_id and players[player_id-1].hitbox[0] < bullet.x < players[player_id-1].hitbox[0] + players[player_id-1].hitbox[2] and players[player_id-1].hitbox[1] < bullet.y < players[player_id-1].hitbox[1] + players[player_id-1].hitbox[3]:
             players[player_id-1].health -= 1
             bullets.remove(bullet)
-            hurt_sound.play()
+            dependencies["hurt_sound"].play()
         if bullet.is_on_screen(length, width):
             bullet.draw(win)
         else:
@@ -210,7 +178,44 @@ def redrawGameWindow(players, bullets, player_id):
     pygame.display.update()
 
 
-def run_game(client, player_id,opponent_queue):
+def run_game(client, player_id,opponent_queue, win):
+
+    ## game sounds
+    shoot_sound = pygame.mixer.Sound("assets/sounds/impact.mp3")
+    shoot_sound.set_volume(0.4)
+
+    hurt_sound = pygame.mixer.Sound("assets/sounds/hurt.mp3")
+    hurt_sound.set_volume(0.4)
+
+    reload_sound = pygame.mixer.Sound("assets/sounds/reload.mp3")
+    reload_sound.set_volume(0.2)
+
+    victory_sound = pygame.mixer.Sound("assets/sounds/victory.mp3")
+    victory_sound.set_volume(0.4)
+
+    defeat_sound = pygame.mixer.Sound("assets/sounds/defeat.mp3")
+    defeat_sound.set_volume(0.4)
+
+    jump_sound = pygame.mixer.Sound("assets/sounds/jump.mp3")
+    jump_sound.set_volume(0.1)
+    
+    dependencies = {
+        "bg" : pygame.image.load('assets/bg.jpg'),
+        "font" : pygame.font.SysFont("comicsans", 24),
+        "shoot_sound" : shoot_sound,
+        "hurt_sound" : hurt_sound,
+        "reload_sound" : reload_sound,
+        "victory_sound" : victory_sound,
+        "defeat_sound" : defeat_sound,
+        "jump_sound" : jump_sound
+    }
+
+
+    pygame.display.set_caption("First Game")
+    clock = pygame.time.Clock()
+
+    
+
     opponent_id = 2 if player_id == 1 else 1
     players = [Player(1, 50, 410, 64, 64, 4, 10), Player(2, 400, 410, 64, 64, 4, 10)]
     running = True
@@ -226,16 +231,16 @@ def run_game(client, player_id,opponent_queue):
                 "type": "game_over",
                 "winner": opponent_id
             })
-            win.blit(bg, (0, 0))
-            text = font.render("You Lose!", True, (255, 0, 0))
+            win.blit(dependencies["bg"], (0, 0))
+            text = dependencies["font"].render("You Lose!", True, (255, 0, 0))
             win.blit(text, (length//2 - text.get_width()//2, width//2 - text.get_height()//2))
             pygame.display.update()
-            defeat_sound.play()
+            dependencies["defeat_sound"].play()
             pygame.time.delay(5000)
             running = False
         ## ammo refill
         for player in players:
-            player.reload()
+            player.reload(dependencies)
 
         keys = pygame.key.get_pressed() ## this line checks which keys are currently pressed and returns a list of boolean value
 
@@ -295,7 +300,7 @@ def run_game(client, player_id,opponent_queue):
         if not players[player_id-1].isJump:
             if keys[pygame.K_SPACE]:
                 players[player_id-1].isJump = True
-                jump_sound.play()
+                dependencies["jump_sound"].play()
         else:
             players[player_id-1].jump()
         
@@ -327,15 +332,15 @@ def run_game(client, player_id,opponent_queue):
                 players[opponent_id-1].ammo = message["ammo"]
                 bullets.append(bullet)
             else:
-                win.blit(bg, (0, 0))
-                text = font.render("You Win!", True, (255, 0, 0))
+                win.blit(dependencies["bg"], (0, 0))
+                text = dependencies["font"].render("You Win!", True, (255, 0, 0))
                 win.blit(text, (length//2 - text.get_width()//2, width//2 - text.get_height()//2))
                 pygame.display.update()
-                victory_sound.play()
+                dependencies["victory_sound"].play()
                 pygame.time.delay(5000)
                 running = False
         
-        redrawGameWindow(players, bullets, player_id)
+        redrawGameWindow(players, bullets, player_id,win, dependencies)
 
-    pygame.quit()
+    
 

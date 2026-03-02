@@ -13,5 +13,5 @@ def receive_message(client,oponent_queue):
                 received_state = json.loads(message)
                 oponent_queue.put(received_state)
         except Exception as e:
-            print(f"Error receiving message: {e}")
+            print(f"game ended by oponent")
             return None
